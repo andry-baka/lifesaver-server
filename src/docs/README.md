@@ -1,6 +1,6 @@
 Snowflake Server ![Snowflake Server](https://cloud.githubusercontent.com/assets/1282364/12075658/12d1cfee-b14c-11e5-9aa5-dc7fd1f0c795.png)
 ==================================
-### This is a Hapi server, backed by MongoDb, running *freely* on Openshift for the [React-Native mobile app Snowflake](https://github.com/bartonhammond/snowflake). 
+### This is a Hapi server, backed by MongoDb & Redis, running *freely* on Openshift for the [React-Native mobile app Snowflake](https://github.com/bartonhammond/snowflake). 
 
 ####You can consider this a "starter server" or a "boilerplate" or maybe just an "example" of how these technologies work together. In any case, I hope there's something here you can learn and apply to your project!
 
@@ -15,6 +15,7 @@ Snowflake Server ![Snowflake Server](https://cloud.githubusercontent.com/assets/
 * **Hapi** [http://hapijs.com/](http://hapijs.com/) - A rich framework for building applications and services
 * **MongoDb** [https://www.mongodb.org](https://www.mongodb.org) - MongoDBis an open-source, document database designed for ease of development and scaling.
 * **Mongoose** [http://mongoosejs.com/](http://mongoosejs.com/) - elegant mongodb object modeling for node.js
+* **Redis** [http://redis.io/](http://redis.io/) - Redis is an open source, in-memory data structure store, used as database, cache and message broker.
 * **Swagger** [http://swagger.io/](http://swagger.io/) - The World's Most Popular Framework for APIs.
 * **Jason Web Token** [https://github.com/auth0/node-jsonwebtoken](https://github.com/auth0/node-jsonwebtoken) JSON Web Tokens are an open, industry standard RFC 7519 method for representing claims securely between two parties.
 * **NodeMailer** [http://nodemailer.com/](http://nodemailer.com/) - Send e-mails with Node.JS – easy as cake!
@@ -43,7 +44,11 @@ web and mobile to microservices and APIs, and validate performance at every soft
 * **Login** When the user logs in with their username and password,
 the sytem responds with a "Session Token".
 
-* **Log Out**
+* **Log Out** When the user logs out, the Session Token is blacklisted
+  using Redis.  Every entry point to the server that requires
+  authentication first checks if the Session Toke has already been
+  revoked by checking it's presence in Redis.  If present, the request
+  is denied.
 
 * **Reset Password** Once the user provides an Email address, they
   receive an email with a link that takes them to a form to submit a
@@ -61,11 +66,12 @@ the sytem responds with a "Session Token".
 
 ### OpenShift
 OpenShift supports a free NodeJS setup that will scale with web
-traffic.  This **Snowflake Server** setup will use MongoDB.
+traffic.  This **Snowflake Server** setup will use MongoDB and Redis.
 ![Open Shift Dashboard](https://cloud.githubusercontent.com/assets/1282364/12080387/4f44e074-b21e-11e5-97d0-244573cc7460.png)
 * This server is using 3 small gears:
   * NodeJS (actually at version 4.2.3)
   * MongoDB
+  * Redis
   * And a **Web Load Balancer**
 
 Some commands that you'll want to know about, once you've install the
@@ -124,6 +130,12 @@ our code.
 
 Once you're ssh'd into Openshift via ```rhc ssh -a mysnowflake```, you
 can use the ```mongo``` shell.
+
+
+### Redis
+Redis is fantastic for key,value pair access.  We're using it here for
+"Black Listing Json Web Tokens".  You can read about this concept here [https://auth0.com/blog/2015/03/10/blacklist-json-web-token-api-keys/](https://auth0.com/blog/2015/03/10/blacklist-json-web-token-api-keys/)
+
 
 ### Swagger
 Swagger provides the api documentation - simply augmenting the
@@ -197,21 +209,24 @@ Below are the instructions for setting up the server on your local machine.  The
 > You may need to "Allow Less Secure Apps" in your gmail account (it's all the way at the bottom). You also may need to "Allow access to your Google account"
 
 
-### Locally (the easiest - using Docker)
-----------------------------------------------------------
-* To build, ```docker-compose build```
-
-* Then run it, ```docker-compose up```
-
-* Even better, build and run on single run, ```docker-compose up --build```
-
-
 
 ### Locally (one time only setup)
 ----------------------------------------------------------
 * Install Mongo db
 [https://www.mongodb.org/downloads#production](https://www.mongodb.org/downloads#production)
   * to start, ```sudo mongod```
+
+* Install Redis
+
+  * I used Redis 2.18.24, which is what's installed on OpenShift
+  * down load and unzip [http://download.redis.io/releases/redis-2.8.24.tar.gz](http://download.redis.io/releases/redis-2.8.24.tar.gz)
+
+```
+cd redis-2.8.24
+make
+cd src/
+./redis-server 
+```
 
 * Update ip in config file w/ ip from `ifconfig`
 Example:
@@ -273,6 +288,15 @@ rhc app-create mysnowflake  nodejs-0.10 mongodb-2.4 -s
 ```
 
 * Note that if you get an error during this step, most likely it has to do with copying the Openshift GIT repository to your local system.  What you can do is to your OpenShift account and use the link they provided for the **Source Code**.  Just ```git clone xxx``` where xxx is the link you copied from Openshift.
+
+
+* This next command will load the Redis cartridge
+
+```
+rhc add-cartridge \
+http://cartreflect-claytondev.rhcloud.com/reflect?github=transformatordesign/openshift-redis-cart \
+-a mysnowflake
+```
 
 
 * These next few steps copy the SnowFlake server to your local Git repository from Openshift.

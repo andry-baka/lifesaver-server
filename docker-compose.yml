@@ -1,0 +1,28 @@
+version: '2'
+services:
+  hapi-server:
+    build:
+      context: .
+    ports:
+      - '3000:3000'
+    depends_on:
+      - mongo
+    environment:
+      - SERVICE_PORT=3000
+      - DB_HOSTNAME=mongodb
+      - DB_PORT=27017
+      - WAIT_START=30
+    networks:
+      - back-tier
+  mongo:
+    image: 'mongo:3.4.1'
+    ports:
+      - '27017:27017'
+    volumes:
+      - 'mongo:/data/db'
+    networks:
+      - back-tier
+volumes:  
+  mongo:
+networks:
+  back-tier:
